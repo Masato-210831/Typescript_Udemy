@@ -1,102 +1,48 @@
-class Department {
-  // private id: string;
-  // name: string;
-
-  // privateにより、employeesはこのクラスからのみアクセスできる
-  // accounting.employees[2] = 'anna'のように外部から値を入れられない
-  protected employees: string[] = [];
-
-  constructor(private readonly id: string, public name: string) {
-    // this.name = name;
-    // this.id = id
-  }
-
-  describe(this: Department) {
-    console.log(`Department (${this.id}): ${this.name}`);
-  }
-
-  addEmployee(employee: string) {
-    this.employees.push(employee);
-  }
-
-  printEnployeeinformation() {
-    console.log(this.employees.length);
-    console.log(this.employees);
-  }
+// function型
+// type AddFn = (a:number, b: number) => number;
+interface AddFn {
+  (n1:number, n2:number): number
 }
 
-class ITDepartment extends Department {
-  admins:string[]
-  constructor(id: string, admins: string[]) {
-    super(id, 'IT');
-    this.admins = admins
-  }
+let add: AddFn;
+
+add = (n1, n2) => n1 + n2;
+
+interface Named {
+   readonly name?: string;
+   outputName?: string;
+ }
+ 
+ interface Greetable extends Named{
+
+  greet(phrase: string): void; 
+
 }
 
-
-class AccountingDepartment extends Department {
-  private lastReport: string;
-
-  get mostRecentReport() {
-    if (this.lastReport) {
-      return this.lastReport;
+class Person implements Greetable {
+  name?: string;
+  age = 30;
+  constructor(n?:string) {
+    if(n) {
+      this.name = n;
     }
-    throw new Error('レポートが見つかりません。')
   }
 
-  set mostRecentReport(value: string){
-    if (!value) {
-      throw new Error('正しい値を設定してください。')
-    }
-    this.addReport(value)
-  }
-
-  constructor(id: string, private reports: string[]) {
-    super(id, 'Accounting');
-    this.lastReport = reports[0];
-  }
-
-  addReport(text:string){
-    this.reports.push(text)
-    this.lastReport = text;
-  }
-
-  printReports(){
-    console.log(this.reports);
-  }
-
-  addEmployee(name: string){
-    if (name === 'Max'){
-      return;
+  greet(phrase:string){
+    if (this.name) {
+      console.log(phrase + ' ' + this.name)
     } else {
-     this.employees.push(name) 
+      console.log('Hi!!!');
     }
   }
 }
 
-const it = new ITDepartment("d1", ['Max']);
-it.addEmployee("Max");
-it.addEmployee("Manu");
 
-it.printEnployeeinformation();
-it.describe();
-
-console.log(it)
-
-// const accoutingCopy = { describe: accounting.describe}
-// const accoutingCopy = {name:'dummy', describe: accounting.describe}
-// console.log(accounting);
-// accoutingCopy.describe();
+ let user1: Greetable;
 
 
-const accounting = new AccountingDepartment('d2', []);
+user1 = new Person();
 
-accounting.mostRecentReport = '通期会計レポート';
+ user1.greet('hello')
 
-accounting.addReport('something')
-accounting.printReports()
-
-console.log(accounting.mostRecentReport)
-accounting.addEmployee('Max');
-accounting.addEmployee('Manu');
-accounting.printEnployeeinformation()
+ console.log(user1)
