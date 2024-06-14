@@ -1,139 +1,109 @@
-//交差型
-type Admin = {
-  name: string;
-  privileges: string[];
-};
+// // const names: Array<string> = ['Max', 'Manuel']; //sting[]と同じ
+// // // names[0].split(' ');
 
-type Employee = {
-  name: string;
-  startDate: Date;
-};
+// // const promise: Promise<string> = new Promise((resolve, reject) => {
+// //   setTimeout(() => {resolve('終わりました')}, 2000)
+// // })
 
-type ElevatedEmployee = Admin & Employee;
+// function merge<T extends object, U extends object>(objA: T, objB: U) { // T, Uは異なったオブジェクトということを提示する->関数を呼び出した時に方が定まる
+//   return Object.assign(objA, objB);
+// }
 
-const e1: ElevatedEmployee = {
-  name: "Max",
-  privileges: ["create-server"],
-  startDate: new Date(),
-};
+// const mergedObject = merge({ name: "Max", hobby:['sports'] }, { age: 20 });
+// const mergedObject2 = merge({ name: "Max"}, { age: 20 })
+// mergedObject.name;
 
-type Combinable = string | number;
-type Numeric = number | boolean;
+// interface Lengthy {
+//   length:number;
+// }
 
-type Universal = Combinable & Numeric;
+// function countAndDescribe<T extends Lengthy>(element:T):[T, string]{ // lengthプロパティがあればなんでも良い。文字列、Arrayなど
+//   let descriptionText = '値がありません。'
+//   if(element.length > 0) {
+//     descriptionText = `値は${element.length}個です。`
+//   }
+//   return [element, descriptionText]
+// }
 
-function add(a: number, b: number): number;
-function add(a: string, b: string): string;
-function add(a: number, b: string): string;
-function add(a: string, b: number): string;
-function add(a: Combinable, b: Combinable) {
-  if (typeof a === "string" || typeof b === "string") {
-    return a.toString() + b.toString();
-  }
-  return a + b;
+// // console.log(countAndDescribe('お疲れ様です。'))
+// // console.log(countAndDescribe(['apple', 'orange']))
+// console.log(countAndDescribe([]))
+
+// function extractAndCover<T extends object, U extends keyof T>(obj:T, key:U) {
+//   return 'Value: ' + obj[key];
+// }
+
+// extractAndCover({name:'taro'}, 'name')
+
+// class DataStorage<T extends string | number | boolean> {
+//   private data: T[] = []
+
+//   addItem(item: T) {
+//     this.data.push(item)
+//   }
+
+//   removeItem(item: T) {
+//     if(this.data.indexOf(item) === -1){
+//       return ;
+//     }
+//     this.data.splice(this.data.indexOf(item), 1);
+//   }
+
+//   getItems() {
+//     return [...this.data];
+//   }
+
+// }
+
+// const textStorage = new DataStorage<string>();
+// textStorage.addItem('data1')
+// textStorage.addItem('data2')
+// textStorage.removeItem('data1')
+// console.log(textStorage.getItems())
+
+// const numberStorage = new DataStorage<number>();
+
+// // const objStorage = new DataStorage<object>();
+// // const obj = {name: 'Max'}
+// // objStorage.addItem(obj);
+// // objStorage.addItem({name:'Manu'});
+// // objStorage.removeItem(obj)
+
+// // console.log(objStorage.getItems())
+
+
+
+// Utility型ww
+interface CourseGoal {
+  title: string;
+  description: string;
+  completeUntil: Date;
 }
 
-const result = add("hello", 1);
-
-const fetchedUserDate = {
-  id: "u1",
-  name: "user1",
-  job: {
-    title: "Developer",
-    description: "TypeScript",
-  },
-};
-
-console.log(fetchedUserDate?.job?.title);
-
-const userInput = "";
-
-const storedDate = userInput ?? "DEFAULT"; // null と undefined以外
-console.log(storedDate);
-
-// type UnknownEmployee = Admin | Employee;
-
-// const printEmployeeInformation = (emp: UnknownEmployee) => {
-//   console.log(emp.name);
-//   if ("privileges" in emp) {
-//     console.log(emp.privileges);
-//   }
-//   if ("startDate" in emp) {
-//     console.log(emp.startDate);
-//   }
-// };
-
-// console.log(printEmployeeInformation(e1));
-
-// class Car {
-//   drive() {
-//     console.log("運転中...");
-//   }
+// function createCourseGoal(
+//   title: string,
+//   description: string,
+//   date: Date
+// ): CourseGoal {
+//   return {
+//     title: title,
+//     description: description,
+//     completeUntil: date,
+//   };
 // }
+function createCourseGoal(
+  title: string,
+  description: string,
+  date: Date
+): CourseGoal {
+  let courseGoal: Partial<CourseGoal> = {}
+  courseGoal.title = title
+  courseGoal.description = description
+  courseGoal.completeUntil = date
+  return courseGoal as CourseGoal
+}
 
-// class Truck {
-//   drive() {
-//     console.log("トラックを運転中...");
-//   }
 
-//   loadCargo(amount: number) {
-//     console.log("荷物を乗せます..." + amount);
-//   }
-// }
+const names: Readonly<string[]> = ['Max', 'Anna']
+// names.pop('Manu')
 
-// type Vehrcle = Car | Truck;
-
-// const v1 = new Car();
-// const v2 = new Truck();
-
-// function useVehicle(Vehicle: Vehrcle) {
-//   Vehicle.drive()
-
-//   if (Vehicle instanceof Truck) {
-//     Vehicle.loadCargo(100)
-//   }
-
-// }
-
-// interface Bird {
-//   type: 'bird',
-//   flyingSpeed: number;
-// }
-
-// interface Horse {
-//   type: 'horse',
-//   runningSpeed: number;
-// }
-
-// type Animal = Bird | Horse
-
-// function moveAnimal(animal: Animal) {
-//   let speed: number;
-//   switch(animal.type) {
-//     case 'bird':
-//       speed = animal.flyingSpeed
-//       break;
-//     case 'horse':
-//       speed = animal.runningSpeed
-//       break;
-//   }
-//   console.log('移動速度：',speed)
-// }
-
-// moveAnimal({type:'bird', flyingSpeed:10})
-
-// // const userInputElement = <HTMLInputElement>document.getElementById('user-input');
-// const userInputElement = document.getElementById('user-input');
-
-// if(userInputElement){
-//   (userInputElement as HTMLInputElement).value = 'こんにちは';
-// }
-
-// interface ErrorContainer {
-//   // インデックス型により、どんな方のプロパティか？もしくはいくつプロパティが必要が？を解決してくれる。
-//   [prop: string]: string;
-// }
-
-// const errorBag: ErrorContainer = {
-//   email: '正しいメールアドレスではありません'
-// };
