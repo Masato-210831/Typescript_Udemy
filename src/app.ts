@@ -1,109 +1,125 @@
-// // const names: Array<string> = ['Max', 'Manuel']; //sting[]と同じ
-// // // names[0].split(' ');
+function Logger(logString: string) {
+  console.log("LOGGER ファクトリ");
+  return function (constructor: Function) {
+    console.log(logString);
+    console.log(constructor);
+  };
+}
 
-// // const promise: Promise<string> = new Promise((resolve, reject) => {
-// //   setTimeout(() => {resolve('終わりました')}, 2000)
-// // })
+function WithTemplate(template: string, hookId: string) {
+  console.log("TEMPATE ファクトリ");
+  return function<T extends {new(...args: any[]): {name:string}}> (originalConstructor: T) {
+    return class extends originalConstructor {
+      constructor(..._: any[]) {
+        super();
+        console.log("テンプレートを表示");
+        const hookEl = document.getElementById(hookId);
+        if (hookEl) {
+          hookEl.innerHTML = template;
+          hookEl.querySelector("h1")!.textContent = this.name;
+        }
+      }
+    };
+  };
+}
 
-// function merge<T extends object, U extends object>(objA: T, objB: U) { // T, Uは異なったオブジェクトということを提示する->関数を呼び出した時に方が定まる
-//   return Object.assign(objA, objB);
-// }
+// @Logger("ログ出力中 - PERSON")
+@Logger("ログ出力中")
+@WithTemplate("<h1>Personオブジェクト</h1>", "app")
+class Person {
+  name = "Max";
 
-// const mergedObject = merge({ name: "Max", hobby:['sports'] }, { age: 20 });
-// const mergedObject2 = merge({ name: "Max"}, { age: 20 })
-// mergedObject.name;
+  constructor() {
+    console.log("Personオブジェクトを作成中・・・");
+  }
+}
 
-// interface Lengthy {
-//   length:number;
-// }
+const pers = new Person();
+console.log(pers);
 
-// function countAndDescribe<T extends Lengthy>(element:T):[T, string]{ // lengthプロパティがあればなんでも良い。文字列、Arrayなど
-//   let descriptionText = '値がありません。'
-//   if(element.length > 0) {
-//     descriptionText = `値は${element.length}個です。`
-//   }
-//   return [element, descriptionText]
-// }
+// ---------
 
-// // console.log(countAndDescribe('お疲れ様です。'))
-// // console.log(countAndDescribe(['apple', 'orange']))
-// console.log(countAndDescribe([]))
+function Log(target: any, propertyName: string | Symbol) {
+  console.log("Property デコレータ");
+  console.log(target, propertyName);
+}
 
-// function extractAndCover<T extends object, U extends keyof T>(obj:T, key:U) {
-//   return 'Value: ' + obj[key];
-// }
+function Log2(target: any, name: string, descriptor: PropertyDescriptor) {
+  console.log("Accessor デコレータ");
+  console.log(target);
+  console.log(name);
+  console.log(descriptor);
+}
 
-// extractAndCover({name:'taro'}, 'name')
+function Log3(
+  target: any,
+  name: string | Symbol,
+  descriptor: PropertyDescriptor
+) {
+  console.log("Method デコレータ");
+  console.log(target);
+  console.log(name);
+  console.log(descriptor);
+}
 
-// class DataStorage<T extends string | number | boolean> {
-//   private data: T[] = []
+function Log4(target: any, name: string | Symbol, position: number) {
+  console.log("Parameter デコレータ");
+  console.log(target);
+  console.log(name);
+  console.log(position);
+}
 
-//   addItem(item: T) {
-//     this.data.push(item)
-//   }
-
-//   removeItem(item: T) {
-//     if(this.data.indexOf(item) === -1){
-//       return ;
-//     }
-//     this.data.splice(this.data.indexOf(item), 1);
-//   }
-
-//   getItems() {
-//     return [...this.data];
-//   }
-
-// }
-
-// const textStorage = new DataStorage<string>();
-// textStorage.addItem('data1')
-// textStorage.addItem('data2')
-// textStorage.removeItem('data1')
-// console.log(textStorage.getItems())
-
-// const numberStorage = new DataStorage<number>();
-
-// // const objStorage = new DataStorage<object>();
-// // const obj = {name: 'Max'}
-// // objStorage.addItem(obj);
-// // objStorage.addItem({name:'Manu'});
-// // objStorage.removeItem(obj)
-
-// // console.log(objStorage.getItems())
-
-
-
-// Utility型ww
-interface CourseGoal {
+class Product {
+  @Log
   title: string;
-  description: string;
-  completeUntil: Date;
-}
+  private _price: number;
 
-// function createCourseGoal(
-//   title: string,
-//   description: string,
-//   date: Date
-// ): CourseGoal {
-//   return {
-//     title: title,
-//     description: description,
-//     completeUntil: date,
-//   };
-// }
-function createCourseGoal(
-  title: string,
-  description: string,
-  date: Date
-): CourseGoal {
-  let courseGoal: Partial<CourseGoal> = {}
-  courseGoal.title = title
-  courseGoal.description = description
-  courseGoal.completeUntil = date
-  return courseGoal as CourseGoal
+  @Log2
+  set price(val: number) {
+    if (val > 0) {
+      this._price = val;
+    } else {
+      throw new Error("不正な価格です - 0 以下は設定できません。");
+    }
+  }
+
+  constructor(t: string, p: number) {
+    this.title = t;
+    this._price = p;
+  }
+
+  @Log3
+  getPriceWithTax(@Log4 tax: number) {
+    return this._price * (1 + tax);
+  }
 }
 
 
-const names: Readonly<string[]> = ['Max', 'Anna']
-// names.pop('Manu')
+function Autobind(_:any, _2: string, descriptor: PropertyDescriptor) {
+  const originalMethod = descriptor.value;
+  const adjDescriptor: PropertyDescriptor = {
+    configurable: true,
+    enumerable: false,
+    get() {
+      const booundFn = originalMethod.bind(this);
+      return booundFn;
+    } 
+  }
+  return adjDescriptor;
+}
 
+
+class Printer {
+  message = 'クリックしました。'
+
+  @Autobind
+  showMessage() {
+    console.log(this.message);
+  }
+}
+
+const p = new Printer();
+
+
+const button = document.querySelector('button')!;
+button.addEventListener('click', p.showMessage);
