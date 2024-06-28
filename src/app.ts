@@ -1,55 +1,70 @@
+// Project Type
+// 数値で紐付けさせたいのでstatusはenum型で定義
+enum ProjectStatus {
+  Active, Finished 
+}
+
+// 雛形の作成
+class Project {
+  constructor(
+    public id: string,
+    public title: string,
+    public description: string,
+    public manday: number,
+    public status: ProjectStatus
+  ) {}
+}
+
+// Project State Management
+type Listener = (item: Project[]) => void
+
 // Project State Management
 // プロジェクトリストの状態管理
 class ProjectState {
-  private listeners: any[] = [];
+  private listeners: Listener[] = [];
   // グローバルに管理するため、コンストラクタで初期化しない？？
-  private projects: any[] = [];
+  private projects: Project[] = [];
   // グローバルにするためstatic
   private static instance: ProjectState;
 
   // シングルトンインスタンス
   // インスタンスを生成するので空でもconstructorが必要？？？
-  private constructor() {
-
-  }
+  private constructor() {}
 
   // シングルトンに必要なメソッドで、これによりグローバルにアクセスできるようになる。
   // グローバルにするためstatic
   static getInstance() {
-    if(this.instance) {
-      return this.instance
+    if (this.instance) {
+      return this.instance;
     }
     this.instance = new ProjectState();
-    return this.instance
+    return this.instance;
   }
 
-  addListener(listenerFn: Function) {
-    this.listeners.push(listenerFn)
+  addListener(listenerFn: Listener) {
+    this.listeners.push(listenerFn);
   }
-  
+
   // リストにinputされたプロジェクトをpushする
   addProject(title: string, description: string, manday: number) {
-    const newProject = {
-      id: Math.random().toString(), // 被る可能性がある-> reactならcount状態管理で行けるのに
-      title:title,
-      description: description,
-      manday: manday
-    }
+    const newProject = new Project(
+      Math.random().toString(),
+      title,
+      description, 
+      manday, 
+      ProjectStatus.Active);
 
     this.projects.push(newProject);
     for (const listerfunc of this.listeners) {
-
       // オリジナルのリストは渡さず、コピーを渡す
       // オリジナルを渡すとオリジナル配列が外から変更可能になる
-      listerfunc([...this.projects])
+      listerfunc([...this.projects]);
     }
   }
 }
 
 // シングルトンインスタンスの生成
-const projectState = ProjectState.getInstance()
-
-
+const projectState = ProjectState.getInstance();
 
 // Validation
 interface Validatable {
@@ -60,7 +75,6 @@ interface Validatable {
   min?: number;
   max?: number;
 }
-
 
 function validate(validatableInput: Validatable) {
   let isValid = true;
@@ -118,56 +132,65 @@ class ProjectList {
   templateElement: HTMLTemplateElement;
   hostElement: HTMLDivElement;
   element: HTMLElement;
-  assigneProjects: any[];
+  assigneProjects: Project[];
 
-  constructor(private type: 'active' | 'finished') {
-    this.templateElement = document.getElementById("project-list")! as HTMLTemplateElement;
+  constructor(private type: "active" | "finished") {
+    this.templateElement = document.getElementById(
+      "project-list"
+    )! as HTMLTemplateElement;
     this.hostElement = document.getElementById("app")! as HTMLDivElement;
-    const importedNode = document.importNode(this.templateElement.content, true)
+    const importedNode = document.importNode(
+      this.templateElement.content,
+      true
+    );
     this.element = importedNode.firstElementChild! as HTMLElement;
-    this.element.id = `${this.type}-projects`
+    this.element.id = `${this.type}-projects`;
     this.assigneProjects = [];
 
     // ProjectStateのシングルトンより
     // projectState.addProject()が実行されるとこのaddListenerに追加される関数も実行される
-    projectState.addListener((projects: any[]) => {
-      // 追加されたProjectsで上書き
-      this.assigneProjects = projects;
-      this.renderProject();
-    })
+    projectState.addListener((projects: Project[]) => {
+      const relevantProjects = projects.filter(project => {
+        // statusがactiveの分岐
+        if (this.type === 'active') {
+          return project.status === ProjectStatus.Active
+        }
 
+        // statusがfinishedの分岐
+        return project.status === ProjectStatus.Finished 
+      })
+      // 追加されたProjectsで上書き
+      this.assigneProjects = relevantProjects;
+      this.renderProject();
+    });
 
     this.attach();
     this.renderContent();
   }
 
   private renderProject() {
-    const listEl = document.getElementById(`${this.type}-project-list`)! as HTMLUListElement;
+    const listEl = document.getElementById(
+      `${this.type}-project-list`
+    )! as HTMLUListElement;
+    listEl.innerHTML = ''
     for (const project of this.assigneProjects) {
-      const listItem = document.createElement('li')
+      const listItem = document.createElement("li");
       listItem.textContent = project.title;
-      listEl.append(listItem)
+      listEl.appendChild(listItem);
     }
   }
 
-
   private renderContent() {
     const listId = `${this.type}-project-list`;
-    this.element.querySelector('ul')!.id = listId;
-    this.element.querySelector('h2')!.textContent = this.type === 'active' ? '実行中プロジェクト' : '完了プロジェクト';
-
-
+    this.element.querySelector("ul")!.id = listId;
+    this.element.querySelector("h2")!.textContent =
+      this.type === "active" ? "実行中プロジェクト" : "完了プロジェクト";
   }
 
   private attach() {
-    this.hostElement.insertAdjacentElement("beforeend", this.element)
+    this.hostElement.insertAdjacentElement("beforeend", this.element);
   }
-
 }
-
-
-
-
 
 // ProjectInput Class
 class ProjectInput {
@@ -189,7 +212,7 @@ class ProjectInput {
       this.templateElement.content,
       true
     );
-    
+
     this.element = importedNode.firstElementChild! as HTMLFormElement;
     this.element.id = "user-input";
     this.titleInputElement = this.element.querySelector(
@@ -254,7 +277,7 @@ class ProjectInput {
     const userInput = this.gatherUserInput();
     if (Array.isArray(userInput)) {
       const [title, desc, mandy] = userInput;
-      projectState.addProject(title, desc, mandy)
+      projectState.addProject(title, desc, mandy);
       console.log(title, desc, mandy);
       this.clearInputs();
     }
@@ -272,9 +295,5 @@ class ProjectInput {
 }
 
 const prjInput = new ProjectInput();
-const activeProject = new ProjectList('active');
-const finishedProject = new ProjectList('finished');
-
-const b = [1, 2, 3, 4]
-const a = [1, 2, 3]
-
+const activeProject = new ProjectList("active");
+const finishedProject = new ProjectList("finished");
