@@ -1,7 +1,20 @@
+// ドラック&ドロップ
+interface Draggable {
+  dragStartHandler(event: DragEvent): void;
+  dragEndHandler(event: DragEvent): void;
+}
+
+interface DragTarget {
+  dragOverHandler(event: DragEvent): void;
+  dropHandler(event: DragEvent): void;
+  dragLeaveHandler(event: DragEvent): void;
+}
+
 // Project Type
 // 数値で紐付けさせたいのでstatusはenum型で定義
 enum ProjectStatus {
-  Active, Finished 
+  Active,
+  Finished,
 }
 
 // 雛形の作成
@@ -16,12 +29,19 @@ class Project {
 }
 
 // Project State Management
-type Listener = (item: Project[]) => void
+type Listener<T> = (item: T[]) => void;
+
+class State<T> {
+  protected listeners: Listener<T>[] = [];
+
+  addListener(listenerFn: Listener<T>) {
+    this.listeners.push(listenerFn);
+  }
+}
 
 // Project State Management
 // プロジェクトリストの状態管理
-class ProjectState {
-  private listeners: Listener[] = [];
+class ProjectState extends State<Project> {
   // グローバルに管理するため、コンストラクタで初期化しない？？
   private projects: Project[] = [];
   // グローバルにするためstatic
@@ -29,7 +49,9 @@ class ProjectState {
 
   // シングルトンインスタンス
   // インスタンスを生成するので空でもconstructorが必要？？？
-  private constructor() {}
+  private constructor() {
+    super();
+  }
 
   // シングルトンに必要なメソッドで、これによりグローバルにアクセスできるようになる。
   // グローバルにするためstatic
@@ -41,20 +63,33 @@ class ProjectState {
     return this.instance;
   }
 
-  addListener(listenerFn: Listener) {
-    this.listeners.push(listenerFn);
-  }
-
   // リストにinputされたプロジェクトをpushする
   addProject(title: string, description: string, manday: number) {
     const newProject = new Project(
       Math.random().toString(),
       title,
-      description, 
-      manday, 
-      ProjectStatus.Active);
+      description,
+      manday,
+      ProjectStatus.Active
+    );
 
     this.projects.push(newProject);
+    this.updateListeners();
+  }
+
+  // projectIdからproject.statusを変更するメソッド
+  moveProject(projectId: string, newStatus: ProjectStatus) {
+    const project = this.projects.find((prj) => prj.id === projectId); // 対象projectを取得
+
+    // 異なるProjectListにdropした場合のみ、再描画する。
+    if (project && project.status !== newStatus) {
+      project.status = newStatus;
+      this.updateListeners();
+    }
+  }
+
+  // 複数のメソッドで下記のforループを使用するのでprivateメソッド化
+  private updateListeners() {
     for (const listerfunc of this.listeners) {
       // オリジナルのリストは渡さず、コピーを渡す
       // オリジナルを渡すとオリジナル配列が外から変更可能になる
@@ -126,95 +161,190 @@ function Autobind(_: any, _2: string, descriptior: PropertyDescriptor) {
   return adjDescriptor;
 }
 
-// ProjectList Class
-
-class ProjectList {
+// Component Class
+// DOMを取得して、表示するベースクラス
+// 継承先のhostElementやelementに特化させるためジェネリクスを使用
+// ベースクラスなので直接のインスタンス化されないようにabstractに設定する
+abstract class Component<T extends HTMLElement, U extends HTMLElement> {
   templateElement: HTMLTemplateElement;
-  hostElement: HTMLDivElement;
-  element: HTMLElement;
-  assigneProjects: Project[];
+  hostElement: T;
+  element: U;
 
-  constructor(private type: "active" | "finished") {
+  constructor(
+    templateId: string,
+    hostElementId: string,
+    insertAtStart: boolean,
+    newElementId?: string
+  ) {
     this.templateElement = document.getElementById(
-      "project-list"
+      templateId
     )! as HTMLTemplateElement;
-    this.hostElement = document.getElementById("app")! as HTMLDivElement;
+    this.hostElement = document.getElementById(hostElementId)! as T; // document.get・・を取得後、Tにキャスト
     const importedNode = document.importNode(
       this.templateElement.content,
       true
     );
-    this.element = importedNode.firstElementChild! as HTMLElement;
-    this.element.id = `${this.type}-projects`;
+
+    this.element = importedNode.firstElementChild! as U;
+    if (newElementId) {
+      this.element.id = newElementId;
+    }
+
+    this.attach(insertAtStart);
+  }
+
+  // オーバーライド強制
+  abstract configure(): void;
+  abstract renderContent(): void;
+
+  // コンストラクタと同じ引数名は避ける
+  private attach(insertAtBeginning: boolean) {
+    this.hostElement.insertAdjacentElement(
+      insertAtBeginning ? "afterbegin" : "beforeend",
+      this.element
+    );
+  }
+}
+
+// ProjectItem Class
+class ProjectItem
+  extends Component<HTMLUListElement, HTMLLinkElement>
+  implements Draggable
+{
+  private project: Project;
+
+  // this.project.mandayに加工を加えたmandayプロパティの作成
+  get manday() {
+    if (this.project.manday < 20) {
+      return this.project.manday.toString() + "人日";
+    } else {
+      return (this.project.manday / 20).toString() + "人月";
+    }
+  }
+
+  constructor(hostId: string, project: Project) {
+    super("single-project", hostId, false, project.id);
+    this.project = project;
+
+    this.configure();
+    this.renderContent();
+  }
+
+  @Autobind
+  dragStartHandler(event: DragEvent) {
+    // dragイベントにおける保管するデータの設定
+    event.dataTransfer!.setData("text/plain", this.project.id);
+    event.dataTransfer!.effectAllowed = "move"; // カーソルの表示関係(dragする意図をブラウザに伝える？？)
+  }
+
+  dragEndHandler(_: DragEvent) {
+    console.log("Drag終了");
+  }
+
+  configure() {
+    this.element.addEventListener("dragstart", this.dragStartHandler);
+    this.element.addEventListener("dragend", this.dragEndHandler);
+  }
+
+  renderContent() {
+    this.element.querySelector("h2")!.textContent = this.project.title;
+    this.element.querySelector("h3")!.textContent = this.manday;
+    this.element.querySelector("p")!.textContent = this.project.description;
+  }
+}
+
+// ProjectList Class
+class ProjectList
+  extends Component<HTMLDivElement, HTMLElement>
+  implements DragTarget
+{
+  assigneProjects: Project[];
+
+  constructor(private type: "active" | "finished") {
+    // superの呼び出しが完了するまでthis.は呼び出せない
+    super("project-list", "app", false, `${type}-projects`);
     this.assigneProjects = [];
+
+    this.configure();
+    this.renderContent();
+  }
+
+  @Autobind
+  dragOverHandler(event: DragEvent) {
+    // dataTransferが保管させている + fromdataがtest/plainの時のみ処理をする
+    if (event.dataTransfer && event.dataTransfer.types[0] === "text/plain") {
+      event.preventDefault(); // dropの許可をする --> defaultでは許可しない --> dropHandlerが呼ばれない
+      const listEl = this.element.querySelector("ul")!;
+      listEl.classList.add("droppable");
+    }
+  }
+
+  @Autobind
+  dropHandler(event: DragEvent) {
+    const prjId = event.dataTransfer!.getData("text/plain");
+    projectState.moveProject(
+      prjId,
+      this.type === "active" ? ProjectStatus.Active : ProjectStatus.Finished
+    );
+  }
+
+  @Autobind
+  dragLeaveHandler(_: DragEvent) {
+    const listEl = this.element.querySelector("ul")!;
+    listEl.classList.remove("droppable");
+  }
+
+  configure() {
+    this.element.addEventListener("dragover", this.dragOverHandler);
+    this.element.addEventListener("drop", this.dropHandler);
+    this.element.addEventListener("dragleave", this.dragLeaveHandler);
 
     // ProjectStateのシングルトンより
     // projectState.addProject()が実行されるとこのaddListenerに追加される関数も実行される
     projectState.addListener((projects: Project[]) => {
-      const relevantProjects = projects.filter(project => {
+      const relevantProjects = projects.filter((project) => {
         // statusがactiveの分岐
-        if (this.type === 'active') {
-          return project.status === ProjectStatus.Active
+        if (this.type === "active") {
+          return project.status === ProjectStatus.Active;
         }
-
+        1;
         // statusがfinishedの分岐
-        return project.status === ProjectStatus.Finished 
-      })
+        return project.status === ProjectStatus.Finished;
+      });
       // 追加されたProjectsで上書き
       this.assigneProjects = relevantProjects;
       this.renderProject();
     });
-
-    this.attach();
-    this.renderContent();
   }
 
-  private renderProject() {
-    const listEl = document.getElementById(
-      `${this.type}-project-list`
-    )! as HTMLUListElement;
-    listEl.innerHTML = ''
-    for (const project of this.assigneProjects) {
-      const listItem = document.createElement("li");
-      listItem.textContent = project.title;
-      listEl.appendChild(listItem);
-    }
-  }
-
-  private renderContent() {
+  // ベースクラスではabstractに指定いているため、private設定できない
+  renderContent() {
     const listId = `${this.type}-project-list`;
     this.element.querySelector("ul")!.id = listId;
     this.element.querySelector("h2")!.textContent =
       this.type === "active" ? "実行中プロジェクト" : "完了プロジェクト";
   }
 
-  private attach() {
-    this.hostElement.insertAdjacentElement("beforeend", this.element);
+  private renderProject() {
+    const listEl = document.getElementById(
+      `${this.type}-project-list`
+    )! as HTMLUListElement;
+    listEl.innerHTML = "";
+    for (const project of this.assigneProjects) {
+      new ProjectItem(listEl.id, project);
+    }
   }
 }
 
 // ProjectInput Class
-class ProjectInput {
-  templateElement: HTMLTemplateElement;
-  hostElement: HTMLDivElement;
-  element: HTMLFormElement;
+class ProjectInput extends Component<HTMLDivElement, HTMLFormElement> {
   titleInputElement: HTMLInputElement;
   descriptionInputElement: HTMLInputElement;
   mandayInputElement: HTMLInputElement;
 
   constructor() {
-    // コンストラクタでは主に要素の参照を取得
-    this.templateElement = document.getElementById(
-      "project-input"
-    )! as HTMLTemplateElement;
-    this.hostElement = document.getElementById("app")! as HTMLDivElement;
+    super("project-input", "app", true, "user-input");
 
-    const importedNode = document.importNode(
-      this.templateElement.content,
-      true
-    );
-
-    this.element = importedNode.firstElementChild! as HTMLFormElement;
-    this.element.id = "user-input";
     this.titleInputElement = this.element.querySelector(
       "#title"
     )! as HTMLInputElement;
@@ -226,8 +356,14 @@ class ProjectInput {
     )! as HTMLInputElement;
 
     this.configure(); // ボタンのイベント
-    this.attach(); // form要素の追加
   }
+
+  configure() {
+    // eventlistener関係
+    this.element.addEventListener("submit", this.submitHandler);
+  }
+
+  renderContent() {}
 
   //フォームのタイトル・名前・人日の値を取得し、検証後に返す
   // 検証：空、
@@ -273,24 +409,12 @@ class ProjectInput {
   @Autobind
   private submitHandler(event: Event) {
     event.preventDefault(); // HTTPリクエストが送られないようにする
-    console.log(this.titleInputElement.value);
     const userInput = this.gatherUserInput();
     if (Array.isArray(userInput)) {
       const [title, desc, mandy] = userInput;
       projectState.addProject(title, desc, mandy);
-      console.log(title, desc, mandy);
       this.clearInputs();
     }
-  }
-
-  private configure() {
-    // eventlistener関係
-    this.element.addEventListener("submit", this.submitHandler);
-  }
-
-  private attach() {
-    // 要素の追加
-    this.hostElement.insertAdjacentElement("afterbegin", this.element);
   }
 }
 
