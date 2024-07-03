@@ -21,7 +21,8 @@ module.exports = {
       },
     ],
   },
-  // devtool: 'eval',
+  devtool: 'eval',
+  devtool: 'source-map',
   module: {
     rules: [
       {
